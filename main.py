@@ -1,7 +1,11 @@
 import os
+from BuildingFactory import BuildingFactory
+from ResourceFactory import ResourceFactory
 from dotenv import load_dotenv
+from entity_engine import EntityDetection
 from story_engine import StoryEngine
 from gamestate_engine import GameState, GameStateEngine
+from gamestate import resources_catalog, buildings_catalog
 
 # Load .env file
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -41,9 +45,18 @@ def main():
     # Initialize engines
     story_engine = StoryEngine(api_key=GEMINI_API_KEY)
     state_engine = GameStateEngine(api_key=GEMINI_API_KEY)
+    entity_detection = EntityDetection(api_key=GEMINI_API_KEY)
+    resource_factory = ResourceFactory(api_key=GEMINI_API_KEY)
+    building_factory = BuildingFactory(api_key=GEMINI_API_KEY)
 
     # Initial game state
-    game_state = GameState(population=10, wood=50, stone=30, food=20, tools=5, buildings=[])
+    starting_resources = {
+        "food": 20,
+        "wood": 50,
+        "stone": 30,
+        "tools": 5
+    }
+    game_state = GameState(population=10, resources=starting_resources, buildings=[])
 
     intro(game_state)
 
@@ -57,9 +70,23 @@ def main():
         narration = story_engine.narrate(user_input, game_state)
         print(f"\nVillage Update: {narration}")
 
+
+        # Entity extraction
+        extracted_entities = entity_detection.extract_entities(
+            narration,
+            known_resources=resources_catalog.keys(),
+            known_buildings=buildings_catalog.keys()
+        )
+        for resource in extracted_entities.new_resources:
+            new_resource = resource_factory.create_resource(resource)
+            resources_catalog[new_resource.name] = new_resource
+        for building in extracted_entities.new_buildings:
+            new_building = building_factory.create_building(building)
+            buildings_catalog[new_building.name] = new_building
+
         # Game state update
         game_state = state_engine.update_state(narration, game_state)
-        print(f"[DEBUG] Game State: {game_state.dict()}")
+        print(f"[DEBUG] Game State: {game_state.model_dump()}")
 
 
 if __name__ == "__main__":

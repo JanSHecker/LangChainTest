@@ -37,7 +37,7 @@ class StoryEngine:
         chain_input = {
             "input": user_input,
             "history": self.memory.buffer,
-            "game_state": game_state
+            "game_state": game_state.model_dump()  # Convert Pydantic model to dict
         }
         messages = self.prompt.format_messages(**chain_input)
         response = self.llm.invoke(messages)
